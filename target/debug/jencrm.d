@@ -1,1 +1,1 @@
-/home/max/Project/jencrm/target/debug/jencrm: /home/max/Project/jencrm/src/main.rs /home/max/Project/jencrm/src/modules/clients.rs /home/max/Project/jencrm/src/modules/database.rs /home/max/Project/jencrm/src/modules/mod.rs
+/home/max/Project/jencrm/target/debug/jencrm: /home/max/Project/jencrm/src/main.rs /home/max/Project/jencrm/src/modules/clients.rs /home/max/Project/jencrm/src/modules/database.rs /home/max/Project/jencrm/src/modules/deals.rs /home/max/Project/jencrm/src/modules/mod.rs

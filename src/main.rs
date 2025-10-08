@@ -9,6 +9,7 @@ use axum::{
 use std::net::SocketAddr;
 use serde::Serialize;
 use modules::database;
+use modules::deals::{Deal, CreateDeal, DealStatus};
 
 // Убираем ненужные импорты - будем использовать полные пути
 
@@ -141,6 +142,62 @@ async fn delete_client(
     }
 }
 
+// GET /api/deals - получить все сделки
+async fn get_deals(State(state): State<AppState>) -> Json<Vec<Deal>> {
+    let deals = sqlx::query_as::<_, Deal>("SELECT * FROM deals ORDER BY id")
+        .fetch_all(&state.db_pool)
+        .await
+        .unwrap_or_else(|_| vec![]);
+
+    Json(deals)
+}
+
+// POST /api/deals - создать сделку
+async fn create_deal(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateDeal>,
+) -> Json<Deal> {
+    let status = payload.status.unwrap_or(DealStatus::Draft);
+    let commission_amount = payload.calculate_commission();
+    
+    let deal = sqlx::query_as::<_, Deal>(
+        "INSERT INTO deals (client_id, deal_amount, commission_percent, commission_amount, tour_operator, deal_date, payment_due_date, status, description) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+         RETURNING *"
+    )
+    .bind(payload.client_id)
+    .bind(payload.deal_amount)
+    .bind(payload.commission_percent)
+    .bind(commission_amount)  // Добавляем рассчитанную комиссию
+    .bind(payload.tour_operator)
+    .bind(payload.deal_date)
+    .bind(payload.payment_due_date)
+    .bind(status)
+    .bind(payload.description)
+    .fetch_one(&state.db_pool)
+    .await
+    .expect("Failed to create deal");
+
+    Json(deal)
+}
+
+// GET /api/deals/{id} - получить сделку по ID
+async fn get_deal(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> Result<Json<Deal>, String> {
+    let deal = sqlx::query_as::<_, Deal>("SELECT * FROM deals WHERE id = $1")
+        .bind(id)
+        .fetch_optional(&state.db_pool)
+        .await
+        .map_err(|e| format!("Database error: {}", e))?;
+
+    match deal {
+        Some(deal) => Ok(Json(deal)),
+        None => Err(format!("Deal with id {} not found", id)),
+    }
+}
+
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
@@ -160,6 +217,9 @@ async fn main() {
     .route("/api/clients/:id", get(get_client))      // Добавляем
     .route("/api/clients/:id", put(update_client))   // Добавляем  
     .route("/api/clients/:id", delete(delete_client)) // Добавляем
+    .route("/api/deals", get(get_deals))
+    .route("/api/deals", post(create_deal))
+    .route("/api/deals/:id", get(get_deal))
     .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
