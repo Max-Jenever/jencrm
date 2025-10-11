@@ -9,8 +9,9 @@ use axum::{
 use std::net::SocketAddr;
 use serde::Serialize;
 use modules::database;
-use modules::deals::{Deal, CreateDeal, DealStatus};
-
+use modules::deals::{Deal, DealStatus};  // Добавляем DealStatus
+use crate::modules::deals::CreateDeal;
+use tower_http::cors::{CorsLayer, Any};
 // Убираем ненужные импорты - будем использовать полные пути
 
 #[derive(Clone)]
@@ -59,8 +60,8 @@ async fn create_client(
     axum::Json(payload): axum::Json<modules::clients::CreateClient>,
 ) -> Json<modules::clients::Client> {
     let client = sqlx::query_as::<_, modules::clients::Client>(
-        "INSERT INTO clients (first_name, last_name, email, phone, passport_data) 
-         VALUES ($1, $2, $3, $4, $5) 
+        "INSERT INTO clients (first_name, last_name, email, phone, passport_data)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING *"
     )
     .bind(payload.first_name)
@@ -101,7 +102,7 @@ async fn update_client(
     Json(payload): Json<modules::clients::CreateClient>,
 ) -> Result<Json<modules::clients::Client>, String> {
     let client = sqlx::query_as::<_, modules::clients::Client>(
-        "UPDATE clients 
+        "UPDATE clients
          SET first_name = $1, last_name = $2, email = $3, phone = $4, passport_data = $5
          WHERE id = $6
          RETURNING *"
@@ -153,33 +154,7 @@ async fn get_deals(State(state): State<AppState>) -> Json<Vec<Deal>> {
 }
 
 // POST /api/deals - создать сделку
-async fn create_deal(
-    State(state): State<AppState>,
-    Json(payload): Json<CreateDeal>,
-) -> Json<Deal> {
-    let status = payload.status.unwrap_or(DealStatus::Draft);
-    let commission_amount = payload.calculate_commission();
-    
-    let deal = sqlx::query_as::<_, Deal>(
-        "INSERT INTO deals (client_id, deal_amount, commission_percent, commission_amount, tour_operator, deal_date, payment_due_date, status, description) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
-         RETURNING *"
-    )
-    .bind(payload.client_id)
-    .bind(payload.deal_amount)
-    .bind(payload.commission_percent)
-    .bind(commission_amount)  // Добавляем рассчитанную комиссию
-    .bind(payload.tour_operator)
-    .bind(payload.deal_date)
-    .bind(payload.payment_due_date)
-    .bind(status)
-    .bind(payload.description)
-    .fetch_one(&state.db_pool)
-    .await
-    .expect("Failed to create deal");
 
-    Json(deal)
-}
 
 // GET /api/deals/{id} - получить сделку по ID
 async fn get_deal(
@@ -198,10 +173,40 @@ async fn get_deal(
     }
 }
 
+// POST /api/deals - создать сделку
+async fn create_deal(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateDeal>,
+) -> Json<Deal> {
+    //let status = payload.status.unwrap_or(DealStatus::Draft);
+    let status = "draft";
+    let commission_amount = (payload.deal_amount * payload.commission_percent) / 100.0;
+
+    let deal = sqlx::query_as::<_, Deal>(
+        "INSERT INTO deals (client_id, deal_amount, commission_percent, commission_amount, tour_operator, deal_date, payment_due_date, status, description)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *"
+    )
+    .bind(payload.client_id)
+    .bind(payload.deal_amount)
+    .bind(payload.commission_percent)
+    .bind(commission_amount)
+    .bind(payload.tour_operator)
+    .bind(payload.deal_date)
+    .bind(payload.payment_due_date)
+    .bind(status)
+    .bind(payload.description)
+    .fetch_one(&state.db_pool)
+    .await
+    .expect("Failed to create deal");
+
+    Json(deal)
+}
+
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
-    
+
     let db_pool = database::create_db_pool()
         .await
         .expect("Ошибка подключения к БД");
@@ -211,16 +216,21 @@ async fn main() {
     let app = Router::new()
     .route("/", get(root))
     .route("/health", get(health_check))
-    // Clients routes
     .route("/api/clients", get(get_clients))
     .route("/api/clients", post(create_client))
-    .route("/api/clients/:id", get(get_client))      // Добавляем
-    .route("/api/clients/:id", put(update_client))   // Добавляем  
-    .route("/api/clients/:id", delete(delete_client)) // Добавляем
+    .route("/api/clients/:id", get(get_client))
+    .route("/api/clients/:id", put(update_client))
+    .route("/api/clients/:id", delete(delete_client))
     .route("/api/deals", get(get_deals))
     .route("/api/deals", post(create_deal))
     .route("/api/deals/:id", get(get_deal))
-    .with_state(state);
+    .with_state(state)
+    .layer(  // ← ТОЧКА НЕ ДОЛЖНА БЫТЬ НА НОВОЙ СТРОКЕ!
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    );
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("->> Сервер запущен на http://{}", addr);

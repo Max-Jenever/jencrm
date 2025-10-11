@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JenCRM</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧳 JenCRM</h1>
+            <p>Управление клиентами и сделками</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('clients')">Клиенты</button>
+            <button class="tab-button" onclick="showTab('deals')">Сделки</button>
+        </div>
+
+        <!-- Вкладка клиентов -->
+        <div id="clients" class="tab-content active">
+            <div class="section-header">
+                <h2>Клиенты</h2>
+                <button onclick="showClientForm()">+ Добавить клиента</button>
+            </div>
+
+            <!-- Форма добавления клиента -->
+            <div id="clientForm" class="form" style="display: none;">
+                <h3>Новый клиент</h3>
+                <input type="text" id="clientFirstName" placeholder="Имя">
+                <input type="text" id="clientLastName" placeholder="Фамилия">
+                <input type="email" id="clientEmail" placeholder="Email">
+                <input type="tel" id="clientPhone" placeholder="Телефон">
+                <div class="form-actions">
+                    <button onclick="createClient()">Сохранить</button>
+                    <button class="cancel" onclick="hideClientForm()">Отмена</button>
+                </div>
+            </div>
+
+            <!-- Список клиентов -->
+            <div id="clientsList" class="list">
+                <div class="loading">Загрузка клиентов...</div>
+            </div>
+        </div>
+
+        <!-- Вкладка сделок -->
+        <div id="deals" class="tab-content">
+            <div class="section-header">
+                <h2>Сделки</h2>
+                <button onclick="showDealForm()">+ Добавить сделку</button>
+            </div>
+
+            <!-- Форма добавления сделки -->
+            <div id="dealForm" class="form" style="display: none;">
+                <h3>Новая сделка</h3>
+                <select id="dealClientId">
+                    <option value="">Выберите клиента</option>
+                </select>
+                <input type="number" id="dealAmount" placeholder="Сумма сделки">
+                <input type="number" id="dealCommission" step="0.1" placeholder="Процент комиссии">
+                <input type="text" id="dealOperator" placeholder="Тур оператор">
+                <input type="date" id="dealDate">
+                <input type="date" id="dealDueDate">
+                <textarea id="dealDescription" placeholder="Описание"></textarea>
+                <div class="form-actions">
+                    <button onclick="createDeal()">Сохранить</button>
+                    <button class="cancel" onclick="hideDealForm()">Отмена</button>
+                </div>
+            </div>
+
+            <!-- Список сделок -->
+            <div id="dealsList" class="list">
+                <div class="loading">Загрузка сделок...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
