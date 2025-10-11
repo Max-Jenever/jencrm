@@ -33,9 +33,9 @@ CREATE INDEX idx_deals_status ON deals(status);
 CREATE INDEX idx_deals_due_date ON deals(payment_due_date);
 
 -- Триггер для обновления updated_at
-CREATE TRIGGER update_deals_updated_at 
-    BEFORE UPDATE ON deals 
-    FOR EACH ROW 
+CREATE TRIGGER update_deals_updated_at
+    BEFORE UPDATE ON deals
+    FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Функция для расчета commission_amount
@@ -48,7 +48,7 @@ END;
 $$ language 'plpgsql';
 
 -- Триггер для расчета commission_amount
-CREATE TRIGGER calculate_deal_commission 
-    BEFORE INSERT OR UPDATE ON deals 
-    FOR EACH ROW 
+CREATE TRIGGER calculate_deal_commission
+    BEFORE INSERT OR UPDATE ON deals
+    FOR EACH ROW
     EXECUTE FUNCTION calculate_commission_amount();
